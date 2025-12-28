@@ -1,0 +1,9 @@
+# Execution data directories
+/.venv
+/.ansible
+
+# Ignore local inventory
+/inventory
+
+# Directory used for documentation generation with antsibull-docs
+/built-docs

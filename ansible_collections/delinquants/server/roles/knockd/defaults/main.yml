@@ -1,0 +1,46 @@
+# Copyright (C) 2026 Delinquants
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+---
+knockd_skip_install: false
+knockd_skip_config: false
+knockd_skip_service: false
+knockd_pkg_name: ''
+
+knockd_config_path: /etc/knockd.conf
+knockd_config_owner: root
+knockd_config_group: root
+knockd_config_mode: "0600"
+
+knockd_use_syslog: true
+knockd_logfile: /var/log/knockd.log
+knockd_pidfile: ''
+knockd_interface: ''
+knockd_config_entries:
+  - name: openCloseSSH
+    sequence:
+      - "2222"
+      - "3333"
+      - "4444"
+    start:
+      open_port: ssh
+    stop:
+      close_port: ssh
+
+knockd_fw: firewalld
+knockd_fw_create_context: true
+knockd_default_seq_timeout: 5
+knockd_default_cmd_timeout: 5
+knockd_default_tcpflags:
+  - syn

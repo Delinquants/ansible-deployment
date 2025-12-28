@@ -1,0 +1,220 @@
+# Copyright (C) 2026 Delinquants
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+---
+argument_specs:
+  main:
+    short_description: Install and configure knockd
+    description:
+      - Install knockd, generate its configuration file, and start the service.
+      - On RHEL hosts, make sure to add the EPEL repository.
+      - nftables support is not implemented, systematically use C(command) if you need it.
+    options:
+      knockd_pkg_name:
+        type: str
+        default: ''
+        description:
+          - Name of the knockd package to install.
+          - If left empty, the name will depend on the platform.
+          - Note that RHEL-like distributions need EPEL to be configured.
+      knockd_skip_install:
+        type: bool
+        default: false
+        description: Whether to skip the install step.
+      knockd_skip_config:
+        type: bool
+        default: false
+        description: Whether to skip the configuration generation/update step.
+      knockd_skip_service:
+        type: bool
+        default: false
+        description: Whether to skip the service start & enable step.
+      knockd_config_path:
+        type: str
+        default: /etc/knockd.conf
+        description: Path to the knockd configuration file that will be created/updated.
+      knockd_config_owner:
+        type: str
+        default: root
+        description: Owner of the knockd configuration file.
+      knockd_config_group:
+        type: str
+        default: root
+        description: Owner of the knockd configuration file.
+      knockd_config_mode:
+        type: str
+        default: "0600"
+        description: Owner of the knockd configuration file.
+      knockd_use_syslog:
+        type: bool
+        default: true
+        description: Log action messages through syslog.
+      knockd_logfile:
+        type: str
+        description: Log actions directly to a file, usually C(/var/log/knockd.log).
+      knockd_pidfile:
+        type: str
+        description: 'Pidfile to use when in daemon mode, default: C(/var/run/knockd.pid).'
+      knockd_interface:
+        type: str
+        description:
+          - Network interface to listen on.
+          - Only provide the interface's name, not its device's path (eg, C(eth0) instead of C(/dev/eth0)).
+          - If not set, the default ipv4 interface will be used, or C(eth0) if no interface was detected.
+      knockd_config_entries:
+        type: list
+        elements: dict
+        description: Knocking configuration entries list
+        required: true
+        required_one_of:
+          - - sequence
+            - one_time_sequences
+        options:
+          name:
+            type: str
+            required: true
+            description: The name of the entry.
+          sequence:
+            type: list
+            elements: str
+            required: false
+            description: The sequence required to trigger this entry.
+          one_time_sequences:
+            type: str
+            required: false
+            description: The path to a file with one time sequences.
+          seq_timeout:
+            type: int
+            required: false
+            description: The time allotated to run the sequence (defaults to C(knockd_default_seq_timeout)).
+          tcpflags:
+            type: list
+            elements: str
+            choices:
+              - fin
+              - syn
+              - rst
+              - psh
+              - ack
+              - urg
+            description: TCP flags recognized for the knock sequence (defaults to C(knockd_default_tcpflags)).
+          start:
+            type: dict
+            required: true
+            required_one_of:
+              - - command
+                - command_6
+                - open_port
+                - close_port
+            mutually_exclusive:
+              - - command
+                - open_port
+                - close_port
+              - - command_6
+                - open_port
+                - close_port
+            description: Action to perform when the sequence is detected.
+            options:
+              command:
+                type: str
+                description:
+                  - Command to run for IPv4 clients.
+                  - If C(command_6) is not set, this will be run for IPv4 and IPv6 clients.
+                  - This can't be set with C(close_port), or C(open_port).
+              command_6:
+                type: str
+                description:
+                  - Command to run for IPv6 clients.
+                  - This can't be set with C(close_port), or C(open_port).
+              close_port:
+                type: str
+                description:
+                  - Port to close.
+                  - This can't be set with C(command), C(command_6), or C(open_port).
+              open_port:
+                type: str
+                description:
+                  - Port to open.
+                  - This can't be set with C(command), C(command_6), or C(close_port).
+          cmd_timeout:
+            type: int
+            required: false
+            description: Time before the knock stop command is executed (defaults to C(knockd_default_cmd_timeout)).
+          stop:
+            type: dict
+            required: false
+            required_one_of:
+              - - command
+                - command_6
+                - open_port
+                - close_port
+            mutually_exclusive:
+              - - command
+                - open_port
+                - close_port
+              - - command_6
+                - open_port
+                - close_port
+            description: Action to perform when the sequence times out.
+            options:
+              command:
+                type: str
+                description:
+                  - Command to run for IPv4 clients.
+                  - If C(command_6) is not set, this will be run for IPv4 and IPv6 clients.
+                  - This can't be set with C(close_port), or C(open_port).
+              command_6:
+                type: str
+                description:
+                  - Command to run for IPv6 clients.
+                  - This can't be set with C(close_port), or C(open_port).
+              close_port:
+                type: str
+                description:
+                  - Port to close.
+                  - This can't be set with C(command), C(command_6), or C(open_port).
+              open_port:
+                type: str
+                description:
+                  - Port to open.
+                  - This can't be set with C(command), C(command_6), or C(close_port).
+      knockd_default_seq_timeout:
+        type: int
+        default: 5
+        description: Default timeout for a knock sequence before it has to be restarted.
+      knockd_default_cmd_timeout:
+        type: int
+        default: 5
+        description: Default timeout before the knock end command is executed.
+      knockd_default_tcpflags:
+        type: list
+        elements: str
+        choices:
+          - fin
+          - syn
+          - rst
+          - psh
+          - ack
+          - urg
+        description: Default tcpflag recognized for the knock sequence.
+      knockd_fw:
+        type: str
+        default: firewalld
+        choices:
+          - firewalld
+          - ufw
+          - iptables
+          - nftables
+        description:
+          - The firewall for which knockd should be configured.

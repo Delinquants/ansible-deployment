@@ -1,0 +1,45 @@
+# Copyright (C) 2026 Delinquants
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+---
+- name: Ensure required ansible automatic variables are set
+  when: ansible_os_family is undefined or ansible_default_ipv4 is undefined
+  ansible.builtin.setup:
+    gather_subset:
+      - '!all'
+      - '!min'
+      - os_family
+      - default_ipv4
+
+- name: Install knockd
+  when: not knockd_skip_install
+  ansible.builtin.package:
+    name: "{{ knockd_pkg_name or knockd_package_names.get(ansible_os_family, 'knockd') }}"
+
+- name: Configure knockd
+  when: not knockd_skip_config
+  register: knockd_reg_config_update
+  ansible.builtin.template:
+    dest: "{{ knockd_config_path }}"
+    owner: "{{ knockd_config_owner }}"
+    group: "{{ knockd_config_group }}"
+    mode: "{{ knockd_config_mode }}"
+    src: "knockd.conf.j2"
+
+- name: Start knockd
+  when: not knockd_skip_service
+  ansible.builtin.service:
+    name: knockd
+    state: "{{ knockd_reg_config_update.changed | ternary('restarted', 'started') }}"
+    enabled: true

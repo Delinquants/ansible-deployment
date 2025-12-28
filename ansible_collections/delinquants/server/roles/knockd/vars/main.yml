@@ -1,0 +1,52 @@
+# Copyright (C) 2026 Delinquants
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+---
+# ansible_os_family
+knockd_package_names:
+  Debian: knockd
+  RedHat: knock-server
+  Suse: knock-server
+  Gentoo: knock
+  Archlinux: knockd
+  Alpine: [knock, knock-openrc]
+  FreeBSD: knock
+
+knockd_command_open:
+  iptables: /sbin/iptables -I INPUT -s %IP% -p tcp --dport PORT -j ACCEPT
+  # nftables: /sbin/nft insert rule filter input ip saddr %IP% tcp dport { PORT } accept
+  # firewalld: /usr/bin/firewall-cmd --permanent --ipset=knockd-allowlist --add-entry=%IP%
+  firewalld: /usr/bin/firewall-cmd --add-rich-rule='rule family="ipv4" source address="%IP%" port protocol="tcp" port="PORT" accept'
+  ufw: /sbin/ufw allow from %IP% to any PORT
+
+knockd_command6_open:
+  iptables: /sbin/iptables -I INPUT -s %IP% -p tcp --dport PORT -j ACCEPT
+  # nftables:
+  # firewalld: /usr/bin/firewall-cmd --permanent --ipset=knockd6-allowlist --add-entry=%IP%
+  firewalld: /usr/bin/firewall-cmd --add-rich-rule='rule family="ipv6" source address="%IP%" port protocol="tcp" port="PORT" accept'
+  ufw: /sbin/ufw allow from %IP% to any PORT
+
+knockd_command_close:
+  iptables: /sbin/iptables -D INPUT -s %IP% -p tcp --dport PORT -j ACCEPT
+  # nftables:
+  # firewalld: /usr/bin/firewall-cmd --permanent --ipset=knockd-allowlist --remove-entry=%IP%
+  firewalld: /usr/bin/firewall-cmd --remove-rich-rule='rule family="ipv4" source address="%IP%" port protocol="tcp" port="PORT" accept'
+  ufw: /sbin/ufw delete allow from %IP% to any PORT
+
+knockd_command6_close:
+  iptables: /sbin/iptables -D INPUT -s %IP% -p tcp --dport PORT -j ACCEPT
+  # nftables:
+  # firewalld: /usr/bin/firewall-cmd --permanent --ipset=knockd6-allowlist --remove-entry=%IP%
+  firewalld: /usr/bin/firewall-cmd --remove-rich-rule='rule family="ipv6" source address="%IP%" port protocol="tcp" port="PORT" accept'
+  ufw: /sbin/ufw delete allow from %IP% to any PORT

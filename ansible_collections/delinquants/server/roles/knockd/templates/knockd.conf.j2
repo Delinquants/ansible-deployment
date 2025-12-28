@@ -1,0 +1,87 @@
+{#
+Copyright (C) 2026 Delinquants
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#}
+# ANSIBLE-MANAGED file
+[options]
+{% if knockd_use_syslog %}
+    UseSyslog
+{% endif %}
+{% if knockd_logfile %}
+    LogFile = {{ knockd_logfile }}
+{% endif %}
+{% if knockd_pidfile %}
+    PidFile = {{ knockd_pidfile }}
+{% endif %}
+    Interface = {{ knockd_interface or ansible_default_ipv4.interface or 'eth0' }}
+
+{% for knockd_config_entry in knockd_config_entries %}
+{% set knockd_config_entry_has_stop = knockd_config_entry.stop is defined %}
+[{{ knockd_config_entry.name }}]
+{% if knockd_config_entry.sequence %}
+    sequence        = {{ knockd_config_entry.sequence | join(',') }}
+{% else %}
+    one_time_sequences = {{ knockd_config_entry.one_time_sequences }}
+{% endif %}
+    seq_timeout     = {{ knockd_config_entry.seq_timeout | default(knockd_default_seq_timeout) }}
+    tcpflags        = {{ knockd_config_entry.tcpflags | default(knockd_default_tcpflags) | join(',') }}
+{%  if knockd_config_entry.target is defined %}
+    target          = {{ knockd_config_entry.target }}
+{%  endif %}
+
+{%  set knockd_config_entry_start = knockd_config_entry_has_stop | ternary('start_command', 'command      ') %}
+{%  set knockd_config_entry_start6 = knockd_config_entry_has_stop | ternary('start_command_6', 'command_6      ') %}
+{%  if knockd_config_entry.start.command is defined %}
+    {{ knockd_config_entry_start }}   = {{ knockd_config_entry.start.command }}
+{%  endif %}
+{%  if knockd_config_entry.start.command_6 is defined %}
+    {{ knockd_config_entry_start6 }}   = {{ knockd_config_entry.start.command_6 }}
+{%  endif %}
+{%  if knockd_config_entry.start.command is undefined and knockd_config_entry.start.command_6 is undefined %}
+{%    if knockd_config_entry.start.open_port | default(false) %}
+    {{ knockd_config_entry_start }}   = {{ knockd_command_open[knockd_fw] | replace('PORT', knockd_config_entry.start.open_port) }}
+    {{ knockd_config_entry_start6 }}   = {{ knockd_command6_open[knockd_fw] | replace('PORT', knockd_config_entry.start.open_port) }}
+{%    else %}
+    {{ knockd_config_entry_start }}   = {{ knockd_command_close[knockd_fw] | replace('PORT', knockd_config_entry.start.close_port) }}
+    {{ knockd_config_entry_start6 }}   = {{ knockd_command6_close[knockd_fw] | replace('PORT', knockd_config_entry.start.close_port) }}
+{%    endif %}
+{%  endif %}
+
+{%  if knockd_config_entry.start_command_6 is defined %}
+    {{ knockd_config_entry_start6 }} = {{ knockd_config_entry.start_command_6 }}
+{%  endif %}
+{%  if knockd_config_entry_has_stop %}
+    cmd_timeout     = {{ knockd_config_entry.cmd_timeout | default(knockd_default_cmd_timeout) }}
+{%  endif %}
+
+{%  if knockd_config_entry.stop is defined %}
+{%    if knockd_config_entry.stop.command is defined %}
+    stop_command    = {{ knockd_config_entry.stop.command }}
+{%    endif %}
+{%    if knockd_config_entry.stop.command_6 is defined %}
+    stop_command_6  = {{ knockd_config_entry.stop.command_6 }}
+{%    endif %}
+{%    if knockd_config_entry.stop.command is undefined and knockd_config_entry.stop.command_6 is undefined %}
+{%      if knockd_config_entry.stop.open_port | default(false) %}
+    stop_command    = {{ knockd_command_open[knockd_fw] | replace('PORT', knockd_config_entry.stop.open_port) }}
+    stop_command_6  = {{ knockd_command6_open[knockd_fw] | replace('PORT', knockd_config_entry.stop.open_port) }}
+{%      else %}
+    stop_command    = {{ knockd_command_close[knockd_fw] | replace('PORT', knockd_config_entry.stop.close_port) }}
+    stop_command_6  = {{ knockd_command6_close[knockd_fw] | replace('PORT', knockd_config_entry.stop.close_port) }}
+{%      endif %}
+{%    endif %}
+{%  endif %}
+
+{% endfor -%}

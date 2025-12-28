@@ -1,0 +1,89 @@
+# Copyright (C) 2026 Delinquants
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+---
+- name: Deploy server
+  hosts: all
+  become: true
+  handlers:
+    - name: Reload firewalld
+      ansible.builtin.service:
+        name: firewalld
+        state: reloaded
+  tasks:
+    - name: Install prerequisites
+      tags:
+        - always
+        - prerequisites
+      when: ansible_os_family in ['RedHat']
+      ansible.builtin.include_tasks: "tasks/prerequisites_{{ ansible_os_family }}.yml"
+
+    - name: Lower attack surface
+      tags: attack
+      ansible.builtin.include_tasks: "tasks/harden_common.yml"
+
+    - name: Setup knockd
+      tags: knock
+      when: configure_knockd | default(false)
+      block:
+        - name: Install and configure knockd
+          ansible.builtin.import_role:
+            name: delinquants.server.knockd
+
+        - name: Disable firewall service after setting-up knockd
+          when: ansible_os_family == 'RedHat'
+          ansible.posix.firewalld:
+            service: "{{ item }}"
+            state: disabled
+            permanent: true
+            immediate: true
+          loop: "{{ knock_managed_firewalld_services }}"
+
+    - name: Install caddy
+      tags: webserver
+      block:
+        - name: Install and configure Caddy
+          ansible.builtin.import_role:
+            name: caddy_ansible.caddy_ansible
+          vars:
+            # The delinquants server is deployed as a static server
+            caddy_config: |
+              {{ delinquants_server_name }} {
+                root * /usr/share/caddy/delinquants
+              }
+              {% for additional_dn in delinquants_server_additional_dns | default([]) %}
+              {{ additional_dn }} {
+                redir https://{{ delinquants_server_name }}{uri} permanent
+              }
+              {% endfor %}
+
+        - name: Enable https and http firewall service
+          when: ansible_os_family == 'RedHat'
+          ansible.posix.firewalld:
+            service: "{{ item }}"
+            state: enabled
+            permanent: true
+            immediate: true
+          loop:
+            - http
+            - https
+
+    - name: Create caddy base directory
+      tags: site
+      ansible.builtin.file:
+        path: /usr/share/caddy/delinquants
+        owner: root
+        group: www-data
+        mode: "0750"
+        state: directory
